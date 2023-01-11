@@ -1,0 +1,34 @@
+{
+  "id": "6fb5af1b-5b59-48f1-85fd-690662cafea7",
+  "name": "CSV Reader",
+  "publisher": "Yurii Popov",
+  "version": "0.0.0.16733740",
+  "brief": "CSV reader for Microsoft Dynamics 365 Business Central",
+  "description": "",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+   
+  ],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "21.0.0.0",
+  "idRanges": [
+    {
+      "from": 50100,
+      "to": 50149
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "10.0",
+  "features": [
+    "NoImplicitWith"
+  ]
+}
