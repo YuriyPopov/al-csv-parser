@@ -26,38 +26,16 @@ codeunit 50102 "CSV Token"
         exit(_type);
     end;
 
-    procedure IsEOS(): Boolean
+    procedure IsEOF(): Boolean
     begin
-        exit(_type = "CSV Token Type"::EOS);
-    end;
-
-    procedure IsValue(): Boolean
-    begin
-        exit(_type = "CSV Token Type"::Value);
-    end;
-
-    procedure IsScope(): Boolean
-    begin
-        exit(_type = "CSV Token Type"::Scope);
-    end;
-
-    procedure IsDelimiter(): Boolean
-    begin
-        exit(_type = "CSV Token Type"::Delimiter);
-    end;
-
-    procedure IsNewLine(): Boolean
-    begin
-        exit(_type = "CSV Token Type"::NewLine);
+        exit(_type = "CSV Token Type"::EOF);
     end;
 
     procedure Repr(): Text
     begin
-        case _type of
-            "CSV Token Type"::EOS, "CSV Token Type"::NewLine, "CSV Token Type"::Delimiter:
-                exit(StrSubstNo('%1', Format(_type)));
-            "CSV Token Type"::Value, "CSV Token Type"::Scope:
-                exit(StrSubstNo('%1 (%2)', Format(_type), _value));
-        end;
+        if _type in ["CSV Token Type"::FIELD, "CSV Token Type"::SUBFIELD] then
+            exit(StrSubstNo('%1 (%2)', Format(_type), _value))
+        else
+            exit(StrSubstNo('%1', Format(_type)));
     end;
 }

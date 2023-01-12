@@ -1,10 +1,13 @@
 codeunit 50100 "CSV Reader"
 {
-    // start: line*
-    // line: cell (DELIMITER cell)* NEWLINE
-    // cell: scope+ | value
-    // scope: SCOPE
-    // value: VALUE
+    // start: record*
+    // record: field (DELIMITER field)* NEWLINE
+    // field: quoted_field 
+    //      | simple_field  
+    //      | empty
+    // quoted_field: SUBFIELD+
+    // simple_field: FIELD
+    // empty:
 
     var
         _scanner: Codeunit "CSV Scanner";
@@ -13,7 +16,7 @@ codeunit 50100 "CSV Reader"
 
     procedure Init(Stream: InStream; Delimiter: Char)
     begin
-        _scanner.Init(Stream, Delimiter, '"');
+        _scanner.Init(Stream, Delimiter);
         _scanner.NextToken(_token);
     end;
 
@@ -27,47 +30,56 @@ codeunit 50100 "CSV Reader"
             Error(ParserErr);
     end;
 
-    local procedure value() Value: Text
-    begin
-        Value += _token.Value();
-        Eat("CSV Token Type"::Value);
-    end;
-
-    local procedure scope() Value: Text
+    local procedure quoted_field() Result: Text
     begin
         repeat
-            Value += _token.Value();
-            Eat("CSV Token Type"::Scope);
-            if _token.IsScope() then
-                Value += '"';
-        until not _token.IsScope();
+            Result += _token.Value();
+            Eat("CSV Token Type"::SUBFIELD);
+            if _token.Type() = "CSV Token Type"::SUBFIELD then
+                Result += '"';
+        until _token.Type() <> "CSV Token Type"::SUBFIELD;
     end;
 
-    local procedure cell(): Text
+    local procedure simple_field() Result: Text
     begin
-        if _token.IsScope() then
-            exit(scope())
-        else
-            exit(value());
+        Result := _token.Value();
+        Eat("CSV Token Type"::FIELD);
     end;
 
-    local procedure line() Line: List of [Text];
+    local procedure empty(): Text
     begin
-        Line.Add(cell());
+    end;
 
-        while _token.IsDelimiter() do begin
-            Eat("CSV Token Type"::Delimiter);
-            Line.Add(cell());
+    local procedure field(): Text
+    begin
+        case _token.Type() of
+            "CSV Token Type"::SUBFIELD:
+                exit(quoted_field());
+            "CSV Token Type"::FIELD:
+                exit(simple_field());
+            else
+                empty();
+        end;
+    end;
+
+    local procedure record() Result: List of [Text]
+    begin
+        Result.Add(field());
+
+        while _token.Type() = "CSV Token Type"::DELIMITER do begin
+            Eat("CSV Token Type"::DELIMITER);
+            Result.Add(field());
         end;
 
-        if not _token.IsEOS() then
-            Eat("CSV Token Type"::NewLine);
+        if _token.Type() <> "CSV Token Type"::EOF then
+            Eat("CSV Token Type"::NEWLINE);
     end;
 
-    procedure Read(): List of [List of [Text]];
+    procedure Read(): List of [List of [Text]]
     begin
-        while not _token.IsEOS() do
-            _result.Add(line());
+        while not _token.IsEOF() do
+            _result.Add(record());
+
         exit(_result);
     end;
 

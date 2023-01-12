@@ -3,7 +3,6 @@ codeunit 50101 "CSV Scanner"
     var
         _stream: InStream;
         _delimiter: Char;
-        _scope: Char;
         _currChar: Char;
         _nextChar: Char;
 
@@ -26,49 +25,61 @@ codeunit 50101 "CSV Scanner"
         exit(true);
     end;
 
-    local procedure EOS(var Token: Codeunit "CSV Token"): Boolean
-    begin
-        Token.Init("CSV Token Type"::EOS);
-    end;
-
-    local procedure NewLine(var Token: Codeunit "CSV Token"): Boolean
-    begin
-        Token.Init("CSV Token Type"::NewLine);
-        Advance();
-        exit(true);
-    end;
-
     local procedure Skip(var Token: Codeunit "CSV Token"): Boolean
     begin
         Advance();
         exit(NextToken(Token));
     end;
 
-    local procedure Delimiter(var Token: Codeunit "CSV Token"): Boolean
+    local procedure InitToken(Type: Enum "CSV Token Type"; var Token: Codeunit "CSV Token"): Boolean
     begin
-        Token.Init("CSV Token Type"::Delimiter);
-        Advance();
-        exit(true)
+        Token.Init(Type);
+        exit(true);
     end;
 
-    local procedure Scope(var Token: Codeunit "CSV Token"): Boolean
+    local procedure InitToken(Type: Enum "CSV Token Type"; Value: Text; var Token: Codeunit "CSV Token"): Boolean
+    begin
+        Token.Init(Type, Value);
+        exit(true);
+    end;
+
+    local procedure EOF(var Token: Codeunit "CSV Token"): Boolean
+    begin
+        Token.Init("CSV Token Type"::EOF);
+    end;
+
+    local procedure NewLine(var Token: Codeunit "CSV Token"): Boolean
+    begin
+        Advance();
+        exit(InitToken("CSV Token Type"::NEWLINE, Token));
+    end;
+
+    local procedure Delimiter(var Token: Codeunit "CSV Token"): Boolean
+    begin
+        Advance();
+        exit(InitToken("CSV Token Type"::DELIMITER, Token))
+    end;
+
+    local procedure Subfield(var Token: Codeunit "CSV Token"): Boolean
     var
         CurrToken: Text;
     begin
         Advance();
-        while (_currChar <> _scope) and not (_currChar in [0, 10, 13]) do begin
+
+        while not (_currChar in [0, 34]) do begin
             CurrToken += _currChar;
             Advance();
         end;
 
-        if _currChar = _scope then
-            Advance();
+        if _currChar = 34 then
+            Advance()
+        else
+            exit(InitToken("CSV Token Type"::FIELD, '"' + CurrToken, Token));
 
-        Token.Init("CSV Token Type"::Scope, CurrToken);
-        exit(true);
+        exit(InitToken("CSV Token Type"::SUBFIELD, CurrToken, Token));
     end;
 
-    local procedure Value(var Token: Codeunit "CSV Token"): Boolean
+    local procedure Field(var Token: Codeunit "CSV Token"): Boolean
     var
         CurrToken: Text;
     begin
@@ -77,33 +88,35 @@ codeunit 50101 "CSV Scanner"
             Advance();
         end;
 
-        Token.Init("CSV Token Type"::Value, CurrToken);
-        exit(true);
+        exit(InitToken("CSV Token Type"::FIELD, CurrToken, Token));
     end;
 
     procedure NextToken(var Token: Codeunit "CSV Token"): Boolean
     begin
         case _currChar of
             0:
-                exit(EOS(Token));
-            10:
-                exit(NewLine(Token));
-            13, 32:
-                exit(Skip(Token));
+                exit(EOF(Token));
             _delimiter:
                 exit(Delimiter(Token));
-            _scope:
-                exit(Scope(Token))
+            10:
+                exit(NewLine(Token));
+            13:
+                if _nextChar = 10 then begin
+                    Advance();
+                    exit(NewLine(Token))
+                end else
+                    Skip(Token);
+            34:
+                exit(Subfield(Token));
             else
-                exit(Value(Token));
+                exit(Field(Token));
         end;
     end;
 
-    procedure Init(Stream: InStream; Delimiter: Char; Scope: Char)
+    procedure Init(Stream: InStream; Delimiter: Char)
     begin
         _stream := Stream;
         _delimiter := Delimiter;
-        _scope := Scope;
         _currChar := 0;
         _nextChar := 0;
         Advance();
