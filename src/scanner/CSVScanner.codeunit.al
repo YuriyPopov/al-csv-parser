@@ -1,26 +1,32 @@
 codeunit 50101 "CSV Scanner"
 {
     var
-        _stream: InStream;
+        _stream: codeunit DotNet_Stream;
+        _reader: Codeunit DotNet_BinaryReader;
         _delimiter: Char;
         _currChar: Char;
         _nextChar: Char;
 
+    local procedure EOS(): Boolean
+    begin
+        exit(_stream.Position() = _stream.Length());
+    end;
+
     local procedure Advance(): Boolean
     begin
-        if _stream.EOS() then begin
+        if EOS() then begin
             _currChar := _nextChar;
             _nextChar := 0;
             exit(_currChar = 0);
         end;
 
         if _nextChar = 0 then
-            _stream.Read(_currChar)
+            _currChar := _reader.ReadChar()
         else
             _currChar := _nextChar;
 
-        if not _stream.EOS() then
-            _stream.Read(_nextChar);
+        if not EOS() then
+            _nextChar := _reader.ReadChar();
 
         exit(true);
     end;
@@ -43,7 +49,7 @@ codeunit 50101 "CSV Scanner"
         exit(true);
     end;
 
-    local procedure EOF(var Token: Codeunit "CSV Token"): Boolean
+    local procedure EndOfFile(var Token: Codeunit "CSV Token"): Boolean
     begin
         Token.Init("CSV Token Type"::EOF);
     end;
@@ -95,7 +101,7 @@ codeunit 50101 "CSV Scanner"
     begin
         case _currChar of
             0:
-                exit(EOF(Token));
+                exit(EndOfFile(Token));
             _delimiter:
                 exit(Delimiter(Token));
             10:
@@ -115,7 +121,8 @@ codeunit 50101 "CSV Scanner"
 
     procedure Init(Stream: InStream; Delimiter: Char)
     begin
-        _stream := Stream;
+        _stream.FromInStream(Stream);
+        _reader.BinaryReader(_stream);
         _delimiter := Delimiter;
         _currChar := 0;
         _nextChar := 0;
