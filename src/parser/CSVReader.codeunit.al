@@ -12,12 +12,52 @@ codeunit 50100 "CSV Reader"
     var
         _scanner: Codeunit "CSV Scanner";
         _token: Codeunit "CSV Token";
-        _result: List of [List of [Text]];
+        _header: List of [Text];
+        _record: List of [Text];
 
-    procedure Init(Stream: InStream; Delimiter: Char)
+    procedure Init(Stream: InStream; Delimiter: Char; HasHeader: Boolean)
     begin
         _scanner.Init(Stream, Delimiter);
         _scanner.NextToken(_token);
+        Clear(_record);
+        Clear(_header);
+        if HasHeader and not _token.IsEOF() then
+            _header := record();
+    end;
+
+    procedure Init(Stream: InStream; Delimiter: Char)
+    begin
+        Init(Stream, Delimiter, false);
+    end;
+
+    procedure Init(Stream: InStream; HasHeader: Boolean)
+    begin
+        Init(Stream, ',', HasHeader);
+    end;
+
+    procedure Init(Stream: InStream)
+    begin
+        Init(Stream, ',', false);
+    end;
+
+    procedure Header(ColumnNumber: Integer): Text
+    begin
+        exit(_header.Get(ColumnNumber));
+    end;
+
+    procedure Header(ColumnNumber: Integer; var Result: Text): Boolean
+    begin
+        exit(_header.Get(ColumnNumber, Result));
+    end;
+
+    procedure Get(ColumnNumber: Integer): Text
+    begin
+        exit(_record.Get(ColumnNumber));
+    end;
+
+    procedure Get(ColumnNumber: Integer; var Result: Text): Boolean
+    begin
+        exit(_record.Get(ColumnNumber, Result));
     end;
 
     local procedure Eat(TokenType: Enum "CSV Token Type")
@@ -46,10 +86,6 @@ codeunit 50100 "CSV Reader"
         Eat("CSV Token Type"::FIELD);
     end;
 
-    local procedure empty(): Text
-    begin
-    end;
-
     local procedure field(): Text
     begin
         case _token.Type() of
@@ -57,8 +93,6 @@ codeunit 50100 "CSV Reader"
                 exit(quoted_field());
             "CSV Token Type"::FIELD:
                 exit(simple_field());
-            else
-                empty();
         end;
     end;
 
@@ -71,16 +105,47 @@ codeunit 50100 "CSV Reader"
             Result.Add(field());
         end;
 
-        if _token.Type() <> "CSV Token Type"::EOF then
+        if not _token.IsEOF() then
             Eat("CSV Token Type"::NEWLINE);
     end;
 
-    procedure Read(): List of [List of [Text]]
+    procedure Read(): Boolean
     begin
-        while not _token.IsEOF() do
-            _result.Add(record());
+        if _token.IsEOF() then
+            exit(false);
 
-        exit(_result);
+        _record := record();
+        exit(true);
+    end;
+
+    procedure Read(var Record: List of [Text]) Result: Boolean
+    var
+        currField: Text;
+    begin
+        Result := Read();
+        if not Result then
+            exit;
+
+        Clear(Record);
+        foreach currField in _record do
+            Record.Add(currField);
+    end;
+
+    procedure Read(var Buffer: Record "CSV Buffer")
+    var
+        currField: Text;
+        lineNo: Integer;
+        fieldNo: Integer;
+    begin
+        Buffer.DeleteAll();
+        while Read() do begin
+            lineNo += 1;
+            fieldNo := 0;
+            foreach currField in _record do begin
+                fieldNo += 1;
+                Buffer.InsertEntry(lineNo, fieldNo, CopyStr(currField, 1, MaxStrLen(Buffer.Value)));
+            end;
+        end;
     end;
 
 }
