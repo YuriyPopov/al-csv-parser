@@ -12,13 +12,42 @@ codeunit 50100 "CSV Reader"
     var
         _scanner: Codeunit "CSV Scanner";
         _token: Codeunit "CSV Token";
+        _header: List of [Text];
         _record: List of [Text];
 
-    procedure Init(Stream: InStream; Delimiter: Char)
+    procedure Init(Stream: InStream; Delimiter: Char; HasHeader: Boolean)
     begin
         _scanner.Init(Stream, Delimiter);
         _scanner.NextToken(_token);
         Clear(_record);
+        Clear(_header);
+        if HasHeader and not _token.IsEOF() then
+            _header := record();
+    end;
+
+    procedure Init(Stream: InStream; Delimiter: Char)
+    begin
+        Init(Stream, Delimiter, false);
+    end;
+
+    procedure Init(Stream: InStream; HasHeader: Boolean)
+    begin
+        Init(Stream, ',', HasHeader);
+    end;
+
+    procedure Init(Stream: InStream)
+    begin
+        Init(Stream, ',', false);
+    end;
+
+    procedure Header(ColumnNumber: Integer): Text
+    begin
+        exit(_header.Get(ColumnNumber));
+    end;
+
+    procedure Header(ColumnNumber: Integer; var Result: Text): Boolean
+    begin
+        exit(_header.Get(ColumnNumber, Result));
     end;
 
     procedure Get(ColumnNumber: Integer): Text
